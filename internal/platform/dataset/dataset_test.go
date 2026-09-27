@@ -58,6 +58,16 @@ func TestParseReadingsSupportsReorderedColumns(t *testing.T) {
 	}
 }
 
+func TestParseMetersHandlesUTF8BOM(t *testing.T) {
+	meters, err := ParseMeters(strings.NewReader(string(rune(0xFEFF)) + "meter_id,name,location\nM-1,A,B\n"))
+	if err != nil {
+		t.Fatalf("BOM header should be accepted: %v", err)
+	}
+	if meters[0].MeterID != "M-1" {
+		t.Fatalf("unexpected %+v", meters[0])
+	}
+}
+
 func TestParseEvents(t *testing.T) {
 	input := `meter_id,event_timestamp,event_type,description
 M-104,2026-09-11 00:00,OPERATIONAL_CHANGE,New production line activated
