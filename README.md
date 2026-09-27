@@ -272,18 +272,3 @@ go test -cover ./...
 El backend se desarrolló con TDD (el historial de git alterna commits `test:` y `feat:`). `internal/domain/analysis/dataset_test.go` valida contra `data/readings.csv` los 4 casos, que M-109 sea prioridad 1 y que los otros 8 medidores no generen alertas.
 
 ---
-
-## Despliegue (gratuito)
-
-La imagen Docker multi-stage compila el frontend y el backend y sirve todo en un solo contenedor.
-
-```bash
-docker build -t voltia-energy .
-docker run --rm -p 8080:8080 -e JWT_SECRET=$(openssl rand -hex 32) -e GEMINI_API_KEY=... voltia-energy
-```
-
-**Render (recomendado):** New → Blueprint → selecciona el repo (usa `render.yaml`) → define `GEMINI_API_KEY` y `DEMO_PASSWORD` → Deploy. Health check en `/api/health`. El plan free duerme tras 15 min de inactividad (primer request ~50 s) y el disco es efímero; la base se recrea desde los CSV en cada arranque, lo que para esta demo es una ventaja.
-
-**Fly.io:** `fly launch --no-deploy` (detecta el Dockerfile) → `fly secrets set JWT_SECRET=... GEMINI_API_KEY=...` → `fly deploy`. Para persistir el historial: `fly volumes create data --size 1` y montar en `/app/var`.
-
-**Railway:** New Project → Deploy from GitHub → detecta el Dockerfile → variables `APP_ENV=production`, `JWT_SECRET`, `GEMINI_API_KEY` → Generate Domain.
