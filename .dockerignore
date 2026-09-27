@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+bin
+*.db
+*.db-*
+web/node_modules
+web/dist
+.claude
+CLAUDE.md
+coverage.out

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: voltia-energy
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_EMAIL
+        value: admin@energia.demo
+      - key: DEMO_PASSWORD
+        sync: false
