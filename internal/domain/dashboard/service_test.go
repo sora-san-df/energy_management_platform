@@ -17,7 +17,9 @@ import (
 
 type fakeMeters struct{ items []meter.Overview }
 
-func (f fakeMeters) List(context.Context, meter.ListQuery) ([]meter.Overview, error) { return f.items, nil }
+func (f fakeMeters) List(context.Context, meter.ListQuery) ([]meter.Overview, error) {
+	return f.items, nil
+}
 
 type fakeReadings struct{ items []reading.Reading }
 
