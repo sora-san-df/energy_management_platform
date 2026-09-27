@@ -1,0 +1,273 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Voltia · Flujo de análisis de anomalías con IA",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/project-flow.html",
+    "legend": {
+      "entries": {
+        "frontend": {
+          "label": "Interfaz React"
+        },
+        "backend": {
+          "label": "Backend Go"
+        },
+        "security": {
+          "label": "Fallback de reglas"
+        },
+        "database": {
+          "label": "Datos"
+        },
+        "cloud": {
+          "label": "Gemini API"
+        },
+        "external": {
+          "label": "Usuario"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Usuario · React SPA"
+    },
+    {
+      "id": "engine",
+      "label": "Backend Go · motor determinista"
+    },
+    {
+      "id": "ai",
+      "label": "IA Gemini y fallback",
+      "variant": "exception"
+    },
+    {
+      "id": "data",
+      "label": "Datos"
+    }
+  ],
+  "phases": [
+    {
+      "id": "request",
+      "label": "Solicitud",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "detection",
+      "label": "Detección",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "decision",
+      "label": "Explicación y acción",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "user",
+    "run",
+    "analyze",
+    "baseline",
+    "detect",
+    "classify",
+    "gemini",
+    "rank",
+    "investigate"
+  ],
+  "nodes": [
+    {
+      "id": "user",
+      "lane": "ui",
+      "col": 0,
+      "type": "external",
+      "label": "Energy Manager",
+      "sublabel": "login JWT",
+      "width": 140
+    },
+    {
+      "id": "run",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Run AI Analysis",
+      "sublabel": "progreso en vivo",
+      "width": 140
+    },
+    {
+      "id": "investigate",
+      "lane": "ui",
+      "col": 5,
+      "type": "frontend",
+      "label": "Investigación",
+      "sublabel": "evidencia + acción",
+      "width": 140
+    },
+    {
+      "id": "analyze",
+      "lane": "engine",
+      "col": 1,
+      "type": "backend",
+      "label": "POST /api/ai/analyze",
+      "sublabel": "202 + ejecución",
+      "width": 150
+    },
+    {
+      "id": "baseline",
+      "lane": "engine",
+      "col": 2,
+      "type": "backend",
+      "label": "Baseline",
+      "sublabel": "mediana horaria",
+      "width": 140
+    },
+    {
+      "id": "detect",
+      "lane": "engine",
+      "col": 3,
+      "type": "backend",
+      "label": "Detección",
+      "sublabel": "cambios + calidad",
+      "width": 140
+    },
+    {
+      "id": "classify",
+      "lane": "engine",
+      "col": 4,
+      "type": "backend",
+      "label": "Clasificación",
+      "sublabel": "eventos + severidad",
+      "width": 140
+    },
+    {
+      "id": "rank",
+      "lane": "engine",
+      "col": 5,
+      "type": "backend",
+      "label": "Priorización",
+      "sublabel": "ranking + estado",
+      "width": 140
+    },
+    {
+      "id": "gemini",
+      "lane": "ai",
+      "col": 4,
+      "type": "cloud",
+      "label": "Gemini",
+      "sublabel": "explicación JSON",
+      "width": 140
+    },
+    {
+      "id": "fallback",
+      "lane": "ai",
+      "col": 5,
+      "type": "security",
+      "label": "Fallback reglas",
+      "sublabel": "sin caída del servicio",
+      "width": 140
+    },
+    {
+      "id": "csv",
+      "lane": "data",
+      "col": 1,
+      "type": "database",
+      "label": "data/*.csv",
+      "sublabel": "lecturas + eventos",
+      "width": 140
+    },
+    {
+      "id": "db",
+      "lane": "data",
+      "col": 2,
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "4.032 lecturas",
+      "width": 140
+    }
+  ],
+  "edges": [
+    {
+      "id": "user-run",
+      "from": "user",
+      "to": "run"
+    },
+    {
+      "id": "run-analyze",
+      "from": "run",
+      "to": "analyze",
+      "label": "Bearer JWT",
+      "variant": "emphasis"
+    },
+    {
+      "id": "analyze-baseline",
+      "from": "analyze",
+      "to": "baseline",
+      "label": "goroutine",
+      "variant": "emphasis"
+    },
+    {
+      "id": "baseline-detect",
+      "from": "baseline",
+      "to": "detect"
+    },
+    {
+      "id": "detect-classify",
+      "from": "detect",
+      "to": "classify"
+    },
+    {
+      "id": "classify-gemini",
+      "from": "classify",
+      "to": "gemini",
+      "label": "hallazgo",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gemini-rank",
+      "from": "gemini",
+      "to": "rank",
+      "label": "explicación",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gemini-fallback",
+      "from": "gemini",
+      "to": "fallback",
+      "label": "429 · timeout",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "fallback-rank",
+      "from": "fallback",
+      "to": "rank",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "rank-investigate",
+      "from": "rank",
+      "to": "investigate",
+      "label": "M-109 primero",
+      "variant": "emphasis"
+    },
+    {
+      "id": "csv-db",
+      "from": "csv",
+      "to": "db",
+      "label": "seed"
+    },
+    {
+      "id": "db-baseline",
+      "from": "db",
+      "to": "baseline",
+      "label": "lecturas",
+      "variant": "dashed"
+    }
+  ]
+}

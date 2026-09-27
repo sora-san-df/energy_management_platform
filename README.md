@@ -15,6 +15,15 @@ DATOS → ANÁLISIS → ANOMALÍA → EXPLICACIÓN → PRIORIZACIÓN → ACCIÓN
 
 Los 8 medidores restantes no generan alertas. Resultado: *4 anomalías detectadas · 2 requieren atención prioritaria*.
 
+### Flujo del proyecto
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/project-flow-dark.png">
+  <img alt="Flujo de Voltia: el usuario lanza Run AI Analysis, la API Go ejecuta baseline, detección y clasificación sobre SQLite, Gemini explica (con fallback a reglas ante 429 o timeout) y la priorización lleva a la investigación de M-109" src="docs/diagrams/project-flow-light.png">
+</picture>
+
+Diagrama generado con [Archify](https://github.com/tt-a1i/archify). Versión interactiva (zoom, búsqueda, trazado de relaciones y exportación): [`docs/diagrams/project-flow.html`](docs/diagrams/project-flow.html), que se abre en local en el navegador. Fuente editable: [`project-flow.workflow.json`](docs/diagrams/project-flow.workflow.json).
+
 ### Flujo de uso
 
 ```mermaid
