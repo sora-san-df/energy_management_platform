@@ -1,0 +1,13 @@
+meter_id,name,location
+M-101,Oficinas Administrativas,Sede Central · Piso 2
+M-102,Compresores de Aire,Planta Norte
+M-103,Iluminación Bodega,Centro Logístico
+M-104,Línea de Producción B,Planta Norte
+M-105,Climatización HVAC,Sede Central
+M-106,Hornos Industriales,Planta Sur
+M-107,Data Center,Sede Central · Sótano
+M-108,Línea de Envasado,Planta Sur
+M-109,Subestación Auxiliar,Planta Norte
+M-110,Cuarto Frío,Centro Logístico
+M-111,Taller de Mantenimiento,Planta Sur
+M-112,Tablero General,Centro Logístico
