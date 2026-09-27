@@ -15,28 +15,58 @@ DATOS → ANÁLISIS → ANOMALÍA → EXPLICACIÓN → PRIORIZACIÓN → ACCIÓN
 
 Los 8 medidores restantes no generan alertas. Resultado: *4 anomalías detectadas · 2 requieren atención prioritaria*.
 
+### Flujo de uso
+
+```mermaid
+flowchart LR
+    login["Login<br/>JWT"] --> dash["Dashboard<br/>KPIs + cola de prioridad"]
+    dash --> meters["Medidores<br/>filtros · búsqueda · orden"]
+    meters --> detail["Detalle M-109<br/>consumo vs baseline"]
+    detail --> run["Run AI Analysis<br/>7 pasos en vivo"]
+    run --> anomalies["Anomalías IA<br/>tipo · severidad · confianza"]
+    anomalies --> inv["Investigación<br/>explicación · variables · evidencia"]
+    inv --> action["Acción<br/>investigando · resuelta · descartada"]
+```
+
 ---
 
 ## Arquitectura
 
 Monolito en un único repositorio: un binario Go expone la API REST bajo `/api` y sirve la SPA de React compilada.
 
-```
-┌──────────────────────── Navegador ────────────────────────┐
-│ React 19 + Vite + Tailwind 4 + Recharts (SPA)             │
-└───────────────┬───────────────────────────────────────────┘
-                │ /api/*  (JWT Bearer)          /* → web/dist
-┌───────────────▼───────────────────────────────────────────┐
-│ Go 1.26 · net/http                                        │
-│  auth ─ meter ─ event ─ anomaly ─ analysis ─ dashboard    │
-│                       │                                   │
-│         Detector determinista (baseline, cambios,         │
-│         correlación eléctrica, calidad, eventos)          │
-│                       │                                   │
-│         Explainer Gemini (retry/backoff, fallback)        │
-└───────────────┬───────────────────────────────┬───────────┘
-          SQLite (modernc, sin CGO)       Google Gemini API
-          seed desde data/*.csv
+```mermaid
+flowchart LR
+    user(["Energy Manager"])
+
+    subgraph browser["Navegador · React SPA"]
+        ui["Dashboard · Medidores · Anomalías IA · Investigación"]
+    end
+
+    subgraph go["Monolito Go · net/http"]
+        router["Router + middlewares<br/>recover · logs · CORS · headers"]
+        auth["auth<br/>JWT HS256"]
+        spa["SPA handler<br/>web/dist"]
+        subgraph domains["Dominios"]
+            meter["meter"]
+            event["event"]
+            anomaly["anomaly<br/>ranking"]
+            dashboard["dashboard"]
+            analysis["analysis<br/>pipeline + detector"]
+        end
+        llm["llm · Gemini Explainer<br/>retry/backoff + fallback"]
+    end
+
+    db[("SQLite<br/>energy.db")]
+    csv[/"data/*.csv<br/>readings · events · meters"/]
+    gemini{{"Google Gemini API"}}
+
+    user --> ui
+    ui -- "/api/* · Bearer JWT" --> router
+    ui -. "/* assets" .-> spa
+    router --> auth --> domains
+    analysis --> llm -- "JSON schema" --> gemini
+    domains --> db
+    csv -- "seed al primer arranque" --> db
 ```
 
 ### Estructura
@@ -76,11 +106,75 @@ Pipeline ejecutado por `POST /api/ai/analyze`, visible paso a paso en la UI:
 6. **Explicación**: Gemini redacta la explicación, los hallazgos y la recomendación a partir de la evidencia estructurada.
 7. **Recomendación**: ranking global (severidad → tipo → confianza), persistencia y estado del medidor.
 
+```mermaid
+flowchart TD
+    start(["POST /api/ai/analyze"]) --> s1["1 · Lecturas<br/>series ordenadas por medidor"]
+    s1 --> s2["2 · Baseline<br/>mediana por hora del día + mediana diaria"]
+    s2 --> s3a["3a · Detección de cambios<br/>desviación ±30% · ≥3 h · persistente o recuperado"]
+    s2 --> s3b["3b · Calidad de datos<br/>voltaje ±5% · saltos V y FP · kWh vs V·I·FP"]
+    s3a --> s4["4 · Correlación eléctrica<br/>corriente · voltaje · FP antes vs durante"]
+    s4 --> s5["5 · Eventos<br/>evento del medidor a ±6 h del cambio"]
+    s3b --> s5
+    s5 --> q1{"¿Cambio de consumo?"}
+
+    q1 -- "sí" --> q2{"¿Lo explica un evento?"}
+    q2 -- "OPERATIONAL_CHANGE" --> exp["Anomalía explicable · MEDIUM<br/>M-104"]
+    q2 -- "SCHEDULED_OUTAGE + caída transitoria" --> fp["Falso positivo · LOW · no escalar<br/>M-106"]
+    q2 -- "no / UNKNOWN" --> real["Anomalía real · HIGH si ≥50% o cambio eléctrico<br/>M-109"]
+    q1 -- "no" --> q3{"¿≥6 lecturas inconsistentes?"}
+    q3 -- "sí" --> dq["Calidad de datos · HIGH<br/>M-112"]
+    q3 -- "no" --> ok["Sin anomalía<br/>8 medidores"]
+
+    exp & fp & real & dq --> s6["6 · Explicación<br/>Gemini redacta reason, acción e insights"]
+    s6 --> s7["7 · Recomendación<br/>ranking severidad → tipo → confianza · estado del medidor"]
+    s7 --> done(["4 anomalías · 2 prioritarias"])
+```
+
 **Clasificación**: un cambio explicado por un evento da *Explicable/Medium* o *Falso positivo/Low*. Un cambio sin explicación da *Anomalía real*, con severidad *High* si supera el 50% o altera la firma eléctrica. Sin cambio de consumo pero con ≥6 lecturas inconsistentes da *Calidad de datos/High*.
 
 **Confianza**: heurística trazable, por ejemplo magnitud, persistencia, cambio eléctrico o alineación con el evento.
 
 ### Rol de la IA (híbrido con fallback)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant UI as React SPA
+    participant API as Go API
+    participant SVC as analysis.Service
+    participant DB as SQLite
+    participant G as Gemini
+
+    U->>UI: Run AI Analysis
+    UI->>API: POST /api/ai/analyze
+    API->>SVC: Start(meter_ids)
+    SVC->>DB: crear ejecución RUNNING
+    API-->>UI: 202 Accepted + ejecución
+    par goroutine en segundo plano
+        SVC->>DB: leer lecturas y eventos
+        SVC->>SVC: baseline · detección · correlación · eventos · clasificación
+        loop por anomalía (máx. 4 en paralelo)
+            SVC->>G: GenerateContent(hallazgo JSON)
+            alt respuesta válida
+                G-->>SVC: reason · acción · confianza · insights
+            else 429 / 5xx / timeout
+                SVC->>G: reintento con backoff (máx. 2)
+            else error definitivo o JSON inválido
+                SVC->>SVC: fallback a explicación del motor de reglas
+            end
+        end
+        SVC->>DB: guardar anomalías priorizadas y estado de medidores
+        SVC->>DB: ejecución COMPLETED (ai_status ok · partial · fallback · disabled)
+    and polling cada 600 ms
+        loop hasta COMPLETED o FAILED
+            UI->>API: GET /api/ai/analysis/{id}
+            API-->>UI: pasos con estado y detalle
+        end
+    end
+    UI-->>U: 4 anomalías · 2 requieren atención prioritaria
+```
+
 
 - El motor determinista decide **tipo y severidad**. Es reproducible y testeable, y garantiza el resultado de M-109 y M-106.
 - **Gemini** recibe el hallazgo como JSON (cifras, ventana, variables, evento, evidencia) con un esquema de respuesta obligatorio y devuelve `reason`, `recommended_action`, `confidence` e `insights`. Solo puede mover la confianza ±0,10.
